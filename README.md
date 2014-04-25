@@ -64,9 +64,9 @@ You can use your Connector in a "*standard*" way or in a more "*fluent*" one.
     $owned_events = $user->getData($user->buildDataKey('owned_events', $conditions));
     
     $data = array(
-    'ME' => $me,
+        'ME' => $me,
         'ORGANIZERS' => $organizers,
-    'OWNED_EVENTS' => $owned_events
+        'OWNED_EVENTS' => $owned_events
     );
     
     // Or if you are Fast & Furious, just call the getData method without params. 
@@ -86,7 +86,7 @@ You can use your Connector in a "*standard*" way or in a more "*fluent*" one.
         ->load('attendees/398989');
         
     $data = array(
-    'user' => $eb->getEntity('users', 'me')->getData(),
+        'user' => $eb->getEntity('users', 'me')->getData(),
         'event' => $eb->getEntity('events', 11197613363)->getData()
     );
 
