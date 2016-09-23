@@ -3,17 +3,17 @@
 namespace EventBriteConnector\Entity;
 
 /**
- * Class Order.
+ * Class Webhook.
  *
  * @package EventBriteConnector\Entity
  */
-class Order extends Entity {
+class Webhook extends Entity {
 
   /**
    * @return string
    */
   public function getEntityApiType() {
-    return 'orders';
+    return 'webhooks';
   }
 
   /**

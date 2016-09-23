@@ -3,17 +3,17 @@
 namespace EventBriteConnector\Entity;
 
 /**
- * Class Order.
+ * Class Category.
  *
  * @package EventBriteConnector\Entity
  */
-class Order extends Entity {
+class Category extends Entity {
 
   /**
-   * @return string
+   * {@inheritdoc}
    */
   public function getEntityApiType() {
-    return 'orders';
+    return 'categories';
   }
 
   /**

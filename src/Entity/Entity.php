@@ -19,18 +19,39 @@ abstract class Entity {
   protected $entityId;
 
   /**
-   * The entity id.
+   * The Eventbrite Connector instance.
    *
-   * @var Connector $entityId
+   * @var Connector $connector
    */
   protected $connector;
 
   /**
-   * The entity id.
+   * The entity data array of existing entities.
    *
-   * @var string $entityId
+   * @var array $data
    */
   protected $data;
+
+  /**
+   * The key of the last loaded data set.
+   *
+   * @var string $activeDataSet
+   */
+  protected $activeDataSet;
+
+  /**
+   * The entity values array of new entities.
+   *
+   * @var array $values
+   */
+  protected $values;
+
+  /**
+   * Whether or not this entity is new.
+   *
+   * @var bool $isNew
+   */
+  protected $isNew;
 
   /**
    * Entity constructor.
@@ -41,6 +62,8 @@ abstract class Entity {
   public function __construct($entity_id) {
     $this->setEntityId($entity_id);
     $this->data = array();
+    $this->values = array();
+    $this->isNew = TRUE;
   }
 
   /**
@@ -61,6 +84,16 @@ abstract class Entity {
    */
   public function getEntityId() {
     return $this->entityId;
+  }
+
+  /**
+   * Is new.
+   *
+   * @return bool
+   *   A boolean indicating whether or not this entity is new.
+   */
+  public function isNew() {
+    return $this->isNew;
   }
 
   /**
@@ -92,7 +125,29 @@ abstract class Entity {
    *   The data value.
    */
   protected function setData($key, $data) {
+    $this->activeDataSet = $key;
     $this->data[$key] = $data;
+    $this->isNew = FALSE;
+  }
+
+  /**
+   * Set values.
+   *
+   * @param array $values
+   *   The values array.
+   */
+  public function setValues(array $values = array()) {
+    $this->values = $values;
+  }
+
+  /**
+   * Get values.
+   *
+   * @return array
+   *   The values array.
+   */
+  public function getValues() {
+    return $this->values;
   }
 
   /**
@@ -133,9 +188,9 @@ abstract class Entity {
    * @param array $conditions
    *   An array of conditions.
    * @param bool $reset
-   *   A boolean indicating whether or not to rest stored data.
+   *   A boolean indicating whether or not to reset stored data.
    *
-   * @return Entity
+   * @return $this
    *   The entity instance.
    */
   public function load($property = '', array $conditions = array(), $reset = FALSE) {
@@ -152,6 +207,48 @@ abstract class Entity {
     }
 
     return $this;
+  }
+
+  /**
+   * Save entity.
+   *
+   * @return mixed
+   *   The response data.
+   */
+  public function save() {
+    $url = $this->getEntityEndpoint() . '/';
+
+    if (!$this->isNew()) {
+      $url .= $this->getEntityId();
+    }
+
+    $params = array(
+      'method' => 'POST',
+      'url' => $url,
+      'data' => $this->getDataToBeSaved(),
+    );
+    return $this->getConnector()->request($params);
+  }
+
+  /**
+   * Get data to be saved.
+   *
+   * @return array
+   *   An array of data to be saved.
+   */
+  protected function getDataToBeSaved() {
+    $data = $this->getValues();
+    if ($this->isNew()) {
+      return $data;
+    }
+
+    if (empty($this->getEntityId())) {
+      $type = $this->getEntityApiType();
+      $message = sprintf('Cannot update entity of type %s without an entity id', $type);
+      throw new \RuntimeException($message);
+    }
+
+    return $this->getData($this->activeDataSet);
   }
 
   /**
