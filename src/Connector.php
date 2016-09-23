@@ -2,6 +2,8 @@
 
 namespace EventBriteConnector;
 use EventBriteConnector\Entity\Entity;
+use GuzzleHttp\Client;
+use GuzzleHttp\RequestOptions;
 
 /**
  * Class Connector.
@@ -56,6 +58,11 @@ class Connector {
   protected $entities;
 
   /**
+   * @var Client $httpClient;
+   */
+  protected $httpClient;
+
+  /**
    * EventBriteConnector constructor.
    *
    * @param string $client_secret
@@ -70,6 +77,7 @@ class Connector {
     $this->setClientSecret($client_secret);
     $this->setClientId($client_id);
     $this->setAccessToken($access_token);
+    $this->httpClient = new Client();
   }
 
   /**
@@ -223,8 +231,14 @@ class Connector {
    *
    * @return Entity
    *   An Eventbrite entity instance.
+   *
+   * @throws \InvalidArgumentException
    */
   public function getEntity($entity_api_type, $entity_id) {
+    if (!isset($this->entities[$entity_api_type][$entity_id])) {
+      $message = sprintf('Undefined entity %s with id %s', $entity_api_type, $entity_id);
+      throw new \InvalidArgumentException($message);
+    }
     return $this->entities[$entity_api_type][$entity_id];
   }
 
@@ -241,13 +255,16 @@ class Connector {
   /**
    * Add entity.
    *
-   * @param \EventBriteConnector\Entity\Entity $entity
-   *   An Eventbrite entity instance.
+   * @param string $entity_api_type
+   *   The entity type name.
+   * @param string $entity_id
+   *   The entity id.
    *
    * @return \EventBriteConnector\Entity\Entity
    *   The added Eventbrite entity instance.
    */
-  public function addEntity(Entity $entity) {
+  public function addEntity($entity_api_type, $entity_id) {
+    $entity = EntityFactory::get($entity_api_type, $entity_id);
     $entities = $this->getEntities();
 
     if (empty($entities[$entity->getEntityApiType()][$entity->getEntityId()])) {
@@ -383,12 +400,16 @@ class Connector {
       $params['headers']['Authorization'] = 'Bearer ' . $access_token;
     }
 
-    $options = array(
+    /*$options = array(
       'http' => array(
         'method' => $params['method'],
         'header' => '',
         'content' => '',
       )
+    );*/
+
+    $options = array(
+      RequestOptions::HEADERS => $params['headers'],
     );
 
     $data = is_array($params['data']) ? http_build_query($params['data']) : $params['data'];
@@ -397,15 +418,18 @@ class Connector {
       $params['url'] .= !empty($data) ? '?' . $data : '';
     }
     else {
-      $options['http']['content'] = $data;
+      $options[RequestOptions::BODY] = $data;
     }
 
-    foreach ($params['headers'] as $type => $value) {
+    /*foreach ($params['headers'] as $type => $value) {
       $options['http']['header'] .= "$type: $value\r\n";
-    }
+    }*/
 
-    $context = stream_context_create($options);
-    $response = file_get_contents($params['url'], FALSE, $context);
+    $response = $this->httpClient->request($params['method'], $params['url'], $options);
+    dump($response);exit();
+
+    #$context = stream_context_create($options);
+    #$response = file_get_contents($params['url'], FALSE, $context);
 
     return json_decode($response);
   }
