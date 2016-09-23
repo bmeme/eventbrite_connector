@@ -1,7 +1,14 @@
 {
   "name": "bmeme/eventbrite_connector",
   "description": "PHP Library for integration with Eventbrite API v3",
+  "type": "library",
   "license": "MIT",
+  "keywords": [
+    "api",
+    "connector",
+    "eventbrite",
+    "event"
+  ],
   "authors": [
     {
       "name": "Adriano Cori",
