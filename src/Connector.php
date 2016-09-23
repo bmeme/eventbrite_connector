@@ -257,13 +257,13 @@ class Connector {
    *
    * @param string $entity_api_type
    *   The entity type name.
-   * @param string $entity_id
+   * @param string|NULL $entity_id
    *   The entity id.
    *
    * @return \EventBriteConnector\Entity\Entity
    *   The added Eventbrite entity instance.
    */
-  public function addEntity($entity_api_type, $entity_id) {
+  public function addEntity($entity_api_type, $entity_id = NULL) {
     $entity = EntityFactory::get($entity_api_type, $entity_id);
     $entities = $this->getEntities();
 
@@ -400,14 +400,6 @@ class Connector {
       $params['headers']['Authorization'] = 'Bearer ' . $access_token;
     }
 
-    /*$options = array(
-      'http' => array(
-        'method' => $params['method'],
-        'header' => '',
-        'content' => '',
-      )
-    );*/
-
     $options = array(
       RequestOptions::HEADERS => $params['headers'],
     );
@@ -421,17 +413,8 @@ class Connector {
       $options[RequestOptions::BODY] = $data;
     }
 
-    /*foreach ($params['headers'] as $type => $value) {
-      $options['http']['header'] .= "$type: $value\r\n";
-    }*/
-
     $response = $this->httpClient->request($params['method'], $params['url'], $options);
-    dump($response);exit();
-
-    #$context = stream_context_create($options);
-    #$response = file_get_contents($params['url'], FALSE, $context);
-
-    return json_decode($response);
+    return json_decode($response->getBody()->getContents());
   }
 
 }
