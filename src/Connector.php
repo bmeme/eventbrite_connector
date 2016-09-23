@@ -1,163 +1,258 @@
 <?php
 
-/**
- * EventBriteConnector.
- * Version: 1.0
- * Author: bmeme
- */
+namespace EventBriteConnector;
+use EventBriteConnector\Entity\Entity;
 
 /**
- * Class EventBriteConnector
+ * Class Connector.
+ *
+ * @package EventBriteConnector
  */
-class EventBriteConnector {
+class Connector {
 
   /**
-   * The Eventbrite OAuth endpoint for access token generation.
+   * The Api endpoint for access token generation.
    */
-  const EVENTBRITE_OAUTH_ENDPOINT = 'https://www.eventbrite.com/oauth';
+  const API_ENDPOINT = 'https://www.eventbriteapi.com/v3';
 
-  private $endpoint;
-  private $client_secret;
-  private $client_id;
-  private $access_token;
-  private $entities;
+  /**
+   * The OAuth endpoint for access token generation.
+   */
+  const OAUTH_ENDPOINT = 'https://www.eventbrite.com/oauth';
 
+  /**
+   * Api endpoint.
+   *
+   * @var string $endpoint
+   */
+  protected $endpoint;
+
+  /**
+   * Your App client secret.
+   *
+   * @var string $clientSecret
+   */
+  protected $clientSecret;
+
+  /**
+   * Your App client id.
+   *
+   * @var string $clientId
+   */
+  protected $clientId;
+
+  /**
+   * Your App client access token.
+   *
+   * @var string $accessToken
+   */
+  protected $accessToken;
+
+  /**
+   * Eventbrite loaded entities.
+   *
+   * @var array $entities
+   */
+  protected $entities;
+
+  /**
+   * EventBriteConnector constructor.
+   *
+   * @param string $client_secret
+   *   Your App client secret.
+   * @param string $client_id
+   *   Your App client secret.
+   * @param string $access_token
+   *   Your App access token.
+   */
   public function __construct($client_secret, $client_id, $access_token = NULL) {
-    $this->setEndpoint('https://www.eventbriteapi.com/v3');
+    $this->setEndpoint(self::API_ENDPOINT);
     $this->setClientSecret($client_secret);
     $this->setClientId($client_id);
     $this->setAccessToken($access_token);
   }
 
   /**
+   * Set endpoint.
+   *
    * @param string $endpoint
+   *   Api endpoint.
    */
   public function setEndpoint($endpoint) {
     $this->endpoint = $endpoint;
   }
 
   /**
+   * Get endpoint.
+   *
    * @return string
+   *   Api endpoint.
    */
   public function getEndpoint() {
     return $this->endpoint;
   }
 
   /**
+   * Set client secret.
+   *
    * @param $client_secret
-   * @return $this
+   *   Your App client secret.
+   *
+   * @return Connector
+   *   The Eventbrite connector instance.
    */
   public function setClientSecret($client_secret) {
-    $this->client_secret = $client_secret;
+    $this->clientSecret = $client_secret;
 
     return $this;
   }
 
   /**
-   * @return mixed
+   * Get client secret.
+   *
+   * @return string
+   *   Your App client secret.
    */
   public function getClientSecret() {
-    return $this->client_secret;
+    return $this->clientSecret;
   }
 
   /**
+   * Set client id.
+   *
    * @param $client_id
+   *   Your App client id.
+   *
    * @return $this
+   *   The Eventbrite connector instance.
    */
   public function setClientId($client_id) {
-    $this->client_id = $client_id;
+    $this->clientId = $client_id;
 
     return $this;
   }
 
   /**
-   * @return mixed
+   * Get client id.
+   *
+   * @return string
+   *   Your App client id.
    */
   public function getClientId() {
-    return $this->client_id;
+    return $this->clientId;
   }
 
   /**
-   * @param $access_token
+   * Set access token.
+   *
+   * @param string|NULL $access_token
+   *   Your App access token.
+   *
    * @return $this
+   *   The Eventbrite connector instance.
    */
   public function setAccessToken($access_token = NULL) {
     if (empty($access_token) && !empty($_SESSION['eb_access_token'])) {
       $access_token = $_SESSION['eb_access_token'];
     }
 
-    $this->access_token = $access_token;
+    $this->accessToken = $access_token;
     $_SESSION['eb_access_token'] = $access_token;
 
     return $this;
   }
 
   /**
-   * @return mixed
-   * @throws RuntimeException
+   * Get access token.
+   *
+   * @return string
+   *   Your App access token.
+   *
+   * @throws \RuntimeException
    */
   public function getAccessToken() {
     if (!empty($_SESSION['eb_access_token'])) {
       $this->setAccessToken($_SESSION['eb_access_token']);
     }
 
-    if (empty($this->access_token)) {
+    if (empty($this->accessToken)) {
       $_SESSION['eb_last_request'] = array(
         'server' => $_SERVER,
         'get' => $_GET,
         'post' => $_POST,
       );
 
-      throw new RuntimeException('Missing Access Token');
+      throw new \RuntimeException('Missing Access Token');
     }
 
-    return $this->access_token;
+    return $this->accessToken;
   }
 
   /**
+   * Delete access token.
+   *
    * @return $this
+   *   The Eventbrite connector instance.
    */
   public function deleteAccessToken() {
-    unset($this->access_token);
+    unset($this->accessToken);
     unset($_SESSION['eb_access_token']);
-
     return $this;
   }
 
   /**
+   * Get entities.
+   *
    * @param string $entity_api_type
-   * @return mixed
+   *   A string representing the type of the entity to be extracted.
+   *
+   * @return array
+   *   An array of entities.
    */
   public function getEntities($entity_api_type = '') {
     return (!empty($entity_api_type)) ? $this->entities[$entity_api_type] : $this->entities;
   }
 
   /**
-   * @param $entity_api_type
-   * @param $entity_id
-   * @return EventBriteEntity
+   * Get entity.
+   *
+   * @param string $entity_api_type
+   *   The entity type name.
+   * @param string $entity_id
+   *   The entity id.
+   *
+   * @return Entity
+   *   An Eventbrite entity instance.
    */
   public function getEntity($entity_api_type, $entity_id) {
     return $this->entities[$entity_api_type][$entity_id];
   }
 
   /**
-   * @param mixed $entities
+   * Set entities.
+   *
+   * @param array $entities
+   *   An array of entities.
    */
-  private function setEntities($entities) {
+  protected function setEntities(array $entities) {
     $this->entities = $entities;
   }
 
   /**
-   * @param EventBriteEntity $entity
-   * @return EventBriteEntity
+   * Add entity.
+   *
+   * @param \EventBriteConnector\Entity\Entity $entity
+   *   An Eventbrite entity instance.
+   *
+   * @return \EventBriteConnector\Entity\Entity
+   *   The added Eventbrite entity instance.
    */
-  public function addEntity(EventBriteEntity $entity) {
+  public function addEntity(Entity $entity) {
     $entities = $this->getEntities();
 
-    if (empty($entities[$entity->getEntityAPIType()][$entity->getEntityId()])) {
+    if (empty($entities[$entity->getEntityApiType()][$entity->getEntityId()])) {
       $entity->setConnector($this);
-      $entities[$entity->getEntityAPIType()][$entity->getEntityId()] = $entity;
+      $entities[$entity->getEntityApiType()][$entity->getEntityId()] = $entity;
 
       $this->setEntities($entities);
     }
@@ -166,14 +261,19 @@ class EventBriteConnector {
   }
 
   /**
-   * @param EventBriteEntity $entity
+   * Remove entity.
+   *
+   * @param \EventBriteConnector\Entity\Entity $entity
+   *   An Eventbrite entity instance.
+   *
    * @return $this
+   *   The Eventbrite connector instance.
    */
-  public function removeEntity(EventBriteEntity $entity) {
+  public function removeEntity(Entity $entity) {
     $entities = $this->getEntities();
 
-    if (!empty($entities[$entity->getEntityAPIType()][$entity->getEntityId()])) {
-      unset($entities[$entity->getEntityAPIType()][$entity->getEntityId()]);
+    if (!empty($entities[$entity->getEntityApiType()][$entity->getEntityId()])) {
+      unset($entities[$entity->getEntityApiType()][$entity->getEntityId()]);
     }
 
     $this->setEntities($entities);
@@ -185,7 +285,7 @@ class EventBriteConnector {
    * Generate an URL for redirection to Eventbrite Authorization page.
    *
    * @return string
-   *  The redirect URL.
+   *   The redirect URL.
    */
   public function getAuthorizationURL() {
     $params = array(
@@ -193,40 +293,44 @@ class EventBriteConnector {
       'client_id' => $this->getClientId()
     );
 
-    return self::EVENTBRITE_OAUTH_ENDPOINT . '/authorize?' . http_build_query($params);
+    return self::OAUTH_ENDPOINT . '/authorize?' . http_build_query($params);
   }
 
   /**
    * Invokes the Eventbrite API to get and set a valid Access Token.
    *
    * @param $auth_code
-   * @throws RuntimeException
+   *   The auth code.
+   *
+   * @throws \RuntimeException
    */
   public function getOAuthToken($auth_code) {
-    $response = $this->request($this->buildOAuthConnectionParams($auth_code));
+    $response = $this->request($this->buildOauthConnectionParams($auth_code));
 
     if (empty($response)) {
-      throw new RuntimeException('Empty response');
+      throw new \RuntimeException('Empty response');
     }
 
     if (!empty($response->error)) {
-      throw new RuntimeException($response->error);
+      throw new \RuntimeException($response->error);
     }
 
     $this->setAccessToken($response->access_token);
   }
 
   /**
-   * @param $auth_code
-   *  The code sent via GET from the Eventbrite Authorization page
-   *  to your redirect URI.
+   * Build OAuth connection params.
+   *
+   * @param string $auth_code
+   *   The code sent via GET from the Eventbrite Authorization page to your
+   *   redirect URI.
    *
    * @return array
-   *  Options to be used for the OAuth connection request.
+   *   Options to be used for the OAuth connection request.
    */
-  private function buildOAuthConnectionParams($auth_code) {
+  protected function buildOauthConnectionParams($auth_code) {
     return array(
-      'url' => self::EVENTBRITE_OAUTH_ENDPOINT . '/token',
+      'url' => self::OAUTH_ENDPOINT . '/token',
       'method' => 'POST',
       'headers' => array('Content-type' => 'application/x-www-form-urlencoded'),
       'data' => array(
@@ -240,11 +344,14 @@ class EventBriteConnector {
   }
 
   /**
-   * @param $params
+   * Request.
+   *
+   * @param array $params
    *  An array of request parameters.
-   *  Example:
+   *
+   * @code
    *  $params = array(
-   *    'url' => self::EVENTBRITE_OAUTH_ENDPOINT . '/token',
+   *    'url' => self::OAUTH_ENDPOINT . '/token',
    *    'method' => 'POST',
    *    'headers' => array('Content-type' => 'application/x-www-form-urlencoded'),
    *    'data' =>  array(
@@ -255,10 +362,12 @@ class EventBriteConnector {
    *    ),
    *    'access_token_required' => FALSE,
    *  );
+   * @endcode
+   *
    * @return mixed
+   *   The request response.
    */
   public function request($params) {
-
     $default = array(
       'url' => '',
       'method' => 'GET',
@@ -300,4 +409,5 @@ class EventBriteConnector {
 
     return json_decode($response);
   }
+
 }
