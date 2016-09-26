@@ -101,9 +101,13 @@ abstract class Entity {
    *
    * @param \EventBriteConnector\Connector $connector
    *   A Connector instance.
+   *
+   * @return Entity
+   *   The entity instance.
    */
   public function setConnector(Connector $connector) {
     $this->connector = $connector;
+    return $this;
   }
 
   /**

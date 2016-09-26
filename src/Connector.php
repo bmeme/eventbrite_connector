@@ -3,6 +3,7 @@
 namespace EventBriteConnector;
 use EventBriteConnector\Entity\Entity;
 use GuzzleHttp\Client;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\RequestOptions;
 
 /**
@@ -400,20 +401,18 @@ class Connector {
       $params['headers']['Authorization'] = 'Bearer ' . $access_token;
     }
 
-    $options = array(
-      RequestOptions::HEADERS => $params['headers'],
-    );
-
     $data = is_array($params['data']) ? http_build_query($params['data']) : $params['data'];
-
     if ($params['method'] == 'GET') {
       $params['url'] .= !empty($data) ? '?' . $data : '';
+      $data = '';
     }
-    else {
-      $options[RequestOptions::BODY] = $data;
+    elseif (empty($params['headers']['Content-type'])) {
+      $params['headers']['Content-type'] = 'application/x-www-form-urlencoded';
     }
 
-    $response = $this->httpClient->request($params['method'], $params['url'], $options);
+    $request = new Request($params['method'], $params['url'], $params['headers'], $data);
+    $response = $this->httpClient->send($request);
+
     return json_decode($response->getBody()->getContents());
   }
 
