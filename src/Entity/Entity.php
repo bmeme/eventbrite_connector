@@ -53,6 +53,8 @@ abstract class Entity {
    */
   protected $isNew;
 
+  public static $instances;
+
   /**
    * Entity constructor.
    *
@@ -60,10 +62,75 @@ abstract class Entity {
    *   The entity id.
    */
   public function __construct($entity_id) {
-    $this->setEntityId($entity_id);
+    $this->isNew = TRUE;
     $this->data = array();
     $this->values = array();
-    $this->isNew = TRUE;
+    $this->setEntityId($entity_id);
+  }
+
+  /**
+   * Get Entity instance.
+   *
+   * @param string $type
+   *   The entity type name.
+   * @param string $entity_id
+   *   The entity id.
+   *
+   * @return Entity
+   *   The Entity instance.
+   *
+   * @throws \InvalidArgumentException
+   */
+  public static function getInstance($type, $entity_id = NULL) {
+    static $instances;
+
+    if (!isset($instances[$type][$entity_id])) {
+      $class = self::getEntityClass($type);
+      $instances[$type][$entity_id] = new $class($entity_id);
+    }
+
+    return $instances[$type][$entity_id];
+  }
+
+  /**
+   * Constructs a new entity object, without permanently saving it.
+   *
+   * @param string $type
+   *   A lowercase string representing the entity type to be created.
+   * @param array $values
+   *   (optional) An array of values to set, keyed by property name.
+   *
+   * @return \EventBriteConnector\Entity\Entity
+   *   The entity object.
+   */
+  public static function create($type, array $values = array()) {
+    $class = self::getEntityClass($type);
+    /** @var Entity $entity */
+    $entity = new $class();
+    $entity->setValues($values);
+    return $entity;
+  }
+
+  /**
+   * Get Entity class.
+   *
+   * @param string $type
+   *   The entity type name.
+   *
+   * @return string
+   *   The Entity class name.
+   *
+   * @throws \InvalidArgumentException
+   */
+  public static function getEntityClass($type) {
+    $class_name = ucfirst($type);
+    $class = "\\EventBriteConnector\\Entity\\" . $class_name;
+
+    if (class_exists($class)) {
+      return $class;
+    }
+    $message = sprintf('Undefined Entity class name %s', $class_name);
+    throw new \InvalidArgumentException($message);
   }
 
   /**
@@ -73,6 +140,9 @@ abstract class Entity {
    *   The entity id.
    */
   public function setEntityId($entity_id) {
+    if (!empty($entity_id)) {
+      $this->isNew = FALSE;
+    }
     $this->entityId = $entity_id;
   }
 
@@ -155,7 +225,7 @@ abstract class Entity {
   }
 
   /**
-   * Get data.
+   * Get all loaded data.
    *
    * @param string $key
    *   The data key.
@@ -165,6 +235,16 @@ abstract class Entity {
    */
   public function getData($key = '') {
     return (!empty($key)) ? $this->data[$key] : $this->data;
+  }
+
+  /**
+   * Get data from active data set (last loaded data).
+   *
+   * @return array
+   *   The data value.
+   */
+  public function getActiveData() {
+    return $this->getData($this->activeDataSet);
   }
 
   /**
@@ -220,17 +300,32 @@ abstract class Entity {
    *   The response data.
    */
   public function save() {
-    $url = $this->getEntityEndpoint() . '/';
+    $params = array(
+      'method' => 'POST',
+      'url' => $this->getEntityEndpoint(),
+      'data' => $this->getDataToBeSaved(),
+    );
+    return $this->getConnector()->request($params);
+  }
 
-    if (!$this->isNew()) {
-      $url .= $this->getEntityId();
+  /**
+   * Delete entity.
+   *
+   * @return mixed
+   *   The response data.
+   *
+   * @throws \RuntimeException
+   */
+  public function delete() {
+    if ($this->isNew()) {
+      throw new \RuntimeException('Cannot delete a new entity');
     }
 
     $params = array(
-      'method' => 'POST',
-      'url' => $url,
-      'data' => $this->getDataToBeSaved(),
+      'method' => 'DELETE',
+      'url' => $this->getEntityEndpoint(),
     );
+
     return $this->getConnector()->request($params);
   }
 
@@ -252,7 +347,7 @@ abstract class Entity {
       throw new \RuntimeException($message);
     }
 
-    return $this->getData($this->activeDataSet);
+    return $this->getActiveData();
   }
 
   /**

@@ -4,7 +4,6 @@ namespace EventBriteConnector;
 use EventBriteConnector\Entity\Entity;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
-use GuzzleHttp\RequestOptions;
 
 /**
  * Class Connector.
@@ -254,24 +253,23 @@ class Connector {
   }
 
   /**
-   * Add entity.
+   * Fetch entity.
    *
    * @param string $entity_api_type
    *   The entity type name.
    * @param string|NULL $entity_id
-   *   The entity id.
+   *   (optional) The entity id.
    *
    * @return \EventBriteConnector\Entity\Entity
    *   The added Eventbrite entity instance.
    */
-  public function addEntity($entity_api_type, $entity_id = NULL) {
-    $entity = EntityFactory::get($entity_api_type, $entity_id);
+  public function fetch($entity_api_type, $entity_id = NULL) {
+    $entity = Entity::getInstance($entity_api_type, $entity_id);
     $entities = $this->getEntities();
 
     if (empty($entities[$entity->getEntityApiType()][$entity->getEntityId()])) {
       $entity->setConnector($this);
       $entities[$entity->getEntityApiType()][$entity->getEntityId()] = $entity;
-
       $this->setEntities($entities);
     }
 
@@ -406,12 +404,13 @@ class Connector {
       $params['url'] .= !empty($data) ? '?' . $data : '';
       $data = '';
     }
-    elseif (empty($params['headers']['Content-type'])) {
+    elseif (empty($params['headers']['Content-type']) && !empty($data)) {
       $params['headers']['Content-type'] = 'application/x-www-form-urlencoded';
     }
 
     $request = new Request($params['method'], $params['url'], $params['headers'], $data);
     $response = $this->httpClient->send($request);
+    dump($request, $response);
 
     return json_decode($response->getBody()->getContents());
   }
