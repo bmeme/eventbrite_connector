@@ -1,6 +1,7 @@
 <?php
 
 namespace EventBriteConnector;
+
 use EventBriteConnector\Entity\Entity;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
@@ -264,16 +265,17 @@ class Connector {
    *   The added Eventbrite entity instance.
    */
   public function fetch($entity_api_type, $entity_id = NULL) {
-    $entity = Entity::getInstance($entity_api_type, $entity_id);
     $entities = $this->getEntities();
-
-    if (empty($entities[$entity->getEntityApiType()][$entity->getEntityId()])) {
+    if (empty($entities[$entity_api_type][$entity_id])) {
+      $entity = Entity::getInstance($entity_api_type, $entity_id);
       $entity->setConnector($this);
-      $entities[$entity->getEntityApiType()][$entity->getEntityId()] = $entity;
+      $entity->load();
+      $entities[$entity->getEntityTypeName()][$entity->getEntityId()] = $entity;
       $this->setEntities($entities);
+      $entity_id = $entity->getEntityId();
     }
 
-    return $entity;
+    return $entities[$entity_api_type][$entity_id];
   }
 
   /**
@@ -400,6 +402,7 @@ class Connector {
     }
 
     $data = is_array($params['data']) ? http_build_query($params['data']) : $params['data'];
+
     if ($params['method'] == 'GET') {
       $params['url'] .= !empty($data) ? '?' . $data : '';
       $data = '';
@@ -410,9 +413,18 @@ class Connector {
 
     $request = new Request($params['method'], $params['url'], $params['headers'], $data);
     $response = $this->httpClient->send($request);
-    dump($request, $response);
 
-    return json_decode($response->getBody()->getContents());
+    return json_decode($response->getBody()->getContents(), TRUE);
+  }
+
+  /**
+   * Get Http Client.
+   *
+   * @return \GuzzleHttp\Client
+   *   The Http Client instance.
+   */
+  public function getHttpClient() {
+    return $this->httpClient;
   }
 
 }

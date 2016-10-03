@@ -53,15 +53,13 @@ abstract class Entity {
    */
   protected $isNew;
 
-  public static $instances;
-
   /**
    * Entity constructor.
    *
-   * @param $entity_id
+   * @param string|NULL $entity_id
    *   The entity id.
    */
-  public function __construct($entity_id) {
+  public function __construct($entity_id = NULL) {
     $this->isNew = TRUE;
     $this->data = array();
     $this->values = array();
@@ -93,22 +91,44 @@ abstract class Entity {
   }
 
   /**
-   * Constructs a new entity object, without permanently saving it.
+   * Load entity.
    *
-   * @param string $type
-   *   A lowercase string representing the entity type to be created.
-   * @param array $values
-   *   (optional) An array of values to set, keyed by property name.
+   * @param string $property
+   *   An Entity API property identified by an API URL path chunk.
+   *   Example: orders, attendees, discounts, etc.
+   * @param array $conditions
+   *   An array of conditions.
+   * @param bool $reset
+   *   A boolean indicating whether or not to reset stored data.
    *
-   * @return \EventBriteConnector\Entity\Entity
-   *   The entity object.
+   * @return $this
+   *   The entity instance.
    */
-  public static function create($type, array $values = array()) {
-    $class = self::getEntityClass($type);
-    /** @var Entity $entity */
-    $entity = new $class();
-    $entity->setValues($values);
-    return $entity;
+  public function load($property = '', array $conditions = array(), $reset = FALSE) {
+    $key = $this->buildDataKey($property, $conditions);
+
+    if (!isset($this->data[$key]) || $reset) {
+      $params = array(
+        'url' => $this->getEntityEndpoint() . $property,
+        'data' => $conditions
+      );
+
+      $response = $this->getConnector()->request($params);
+      $this->setData($key, $response);
+    }
+
+    return $this;
+  }
+
+  /**
+   * Get Entity type name.
+   *
+   * @return string
+   *   The name of the entity.
+   */
+  public function getEntityTypeName() {
+    $path = explode('\\', get_called_class());
+    return strtolower(array_pop($path));
   }
 
   /**
@@ -202,6 +222,7 @@ abstract class Entity {
     $this->activeDataSet = $key;
     $this->data[$key] = $data;
     $this->isNew = FALSE;
+    $this->setValues($this->getNormalizedData());
   }
 
   /**
@@ -210,7 +231,7 @@ abstract class Entity {
    * @param array $values
    *   The values array.
    */
-  public function setValues(array $values = array()) {
+  protected function setValues(array $values = array()) {
     $this->values = $values;
   }
 
@@ -254,79 +275,12 @@ abstract class Entity {
    *   The Entity API endpoint URL.
    */
   public function getEntityEndpoint() {
-    $endpoint = array(
+    $endpoint = array_filter(array(
       $this->getConnector()->getEndpoint(),
       $this->getEntityApiType(),
-      $this->getEntityId()
-    );
-
-    return implode('/', $endpoint);
-  }
-
-  /**
-   * Load entity.
-   *
-   * @param string $property
-   *   An Entity API property identified by an API URL path chunk.
-   *   Example: orders, attendees, discounts, etc.
-   * @param array $conditions
-   *   An array of conditions.
-   * @param bool $reset
-   *   A boolean indicating whether or not to reset stored data.
-   *
-   * @return $this
-   *   The entity instance.
-   */
-  public function load($property = '', array $conditions = array(), $reset = FALSE) {
-    $key = $this->buildDataKey($property, $conditions);
-
-    if (!isset($this->data[$key]) || $reset) {
-      $params = array(
-        'url' => $this->getEntityEndpoint() . '/' . $property,
-        'data' => $conditions
-      );
-
-      $response = $this->getConnector()->request($params);
-      $this->setData($key, $response);
-    }
-
-    return $this;
-  }
-
-  /**
-   * Save entity.
-   *
-   * @return mixed
-   *   The response data.
-   */
-  public function save() {
-    $params = array(
-      'method' => 'POST',
-      'url' => $this->getEntityEndpoint(),
-      'data' => $this->getDataToBeSaved(),
-    );
-    return $this->getConnector()->request($params);
-  }
-
-  /**
-   * Delete entity.
-   *
-   * @return mixed
-   *   The response data.
-   *
-   * @throws \RuntimeException
-   */
-  public function delete() {
-    if ($this->isNew()) {
-      throw new \RuntimeException('Cannot delete a new entity');
-    }
-
-    $params = array(
-      'method' => 'DELETE',
-      'url' => $this->getEntityEndpoint(),
-    );
-
-    return $this->getConnector()->request($params);
+      $this->getEntityId(),
+    ));
+    return implode('/', $endpoint) . '/';
   }
 
   /**
@@ -336,9 +290,8 @@ abstract class Entity {
    *   An array of data to be saved.
    */
   protected function getDataToBeSaved() {
-    $data = $this->getValues();
     if ($this->isNew()) {
-      return $data;
+      return $this->getValues();
     }
 
     if (empty($this->getEntityId())) {
@@ -347,7 +300,7 @@ abstract class Entity {
       throw new \RuntimeException($message);
     }
 
-    return $this->getActiveData();
+    return $this->getNormalizedData();
   }
 
   /**
@@ -367,8 +320,73 @@ abstract class Entity {
 
     return empty($conditions) ? $property : implode(':', array(
       $property,
-      $conditions
+      $conditions,
     ));
+  }
+
+  /**
+   * Parse data key.
+   *
+   * @param string $key
+   *   A string representing the data key.
+   *
+   * @return array
+   *   An associative array containing property and conditions.
+   */
+  public function parseDataKey($key) {
+    $conditions = array();
+    list($property, $query) = explode(':', $key);
+
+    if ($property == $this->entityId) {
+      $property = '';
+    }
+
+    if (!empty($query)) {
+      parse_str($query, $conditions);
+    }
+
+    return array(
+      'property' => $property,
+      'conditions' => $conditions,
+    );
+  }
+
+  /**
+   * Get normalized data.
+   *
+   * @return array
+   *   An array of normalized data.
+   */
+  protected function getNormalizedData() {
+    $data = $this->normalizeData($this->getEntityTypeName(), $this->getActiveData());
+    return $data;
+  }
+
+  /**
+   * Normalize data.
+   *
+   * @param string $prefix
+   *   The entity property prefix.
+   * @param array $data
+   *   An array of data to be normalized.
+   * @param array $normalized
+   *   The normalized data array.
+   *
+   * @return array
+   *   An array of normalized data.
+   */
+  private function normalizeData($prefix, array $data, &$normalized = array()) {
+    foreach ($data as $key => $value) {
+      $element = "$prefix.$key";
+      if (is_array($value)) {
+        $this->normalizeData($element, $value, $normalized);
+      }
+      else {
+        $normalized[$element] = $value;
+      }
+    }
+
+    return $normalized;
   }
 
   /**

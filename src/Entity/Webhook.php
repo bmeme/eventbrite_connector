@@ -2,12 +2,18 @@
 
 namespace EventBriteConnector\Entity;
 
+use EventBriteConnector\Entity\Crud\EntityCreateTrait;
+use EventBriteConnector\Entity\Crud\EntityDeleteTrait;
+
 /**
  * Class Webhook.
  *
  * @package EventBriteConnector\Entity
  */
 class Webhook extends Entity {
+
+  use EntityCreateTrait;
+  use EntityDeleteTrait;
 
   /**
    * @return string
