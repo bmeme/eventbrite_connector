@@ -3,6 +3,8 @@ Eventbrite Connector
 
 Eventbrite Connector is a simple and easy to use PHP Library for integration with Eventbrite API v3.
 
+> Note: Version 1.x is deprecated and no longer mantained. Please update to 2.x.
+
 ## Installation ##
 Just download the library and require the autoload.php file:
 
